@@ -6,3 +6,9 @@ seaborn
 plotly
 joblib
 tensorflow
+flake8
+black
+bandit
+fastapi
+uvicorn
+pydantic
