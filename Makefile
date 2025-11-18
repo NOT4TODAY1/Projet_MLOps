@@ -13,13 +13,13 @@ runall:
 	python main.py --runall
 
 lint:
-	flake8 src/ main.py model_pipeline.py --max-line-length=120
+	python -m flake8 src/ main.py model_pipeline.py --max-line-length=120
 
 format:
-	black src/ main.py model_pipeline.py --line-length=120
+	python -m black src/ main.py model_pipeline.py --line-length=120
 
 security:
-	bandit -r src/ main.py model_pipeline.py
+	python -m bandit -r src/ main.py model_pipeline.py
 
 ci: lint security
 	@echo "CI checks passed!"
