@@ -10,7 +10,7 @@ from src.preprocess import SCALE_COLUMNS
 
 app = FastAPI(title="Alzheimer's Disease Classifier API", version="1.0.0")
 
-MODEL_PATH = "models/Decision_Tree.joblib"
+MODEL_PATH = "models/Random_Forest.joblib"
 model = None
 
 
