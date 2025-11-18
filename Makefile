@@ -1,4 +1,4 @@
-.PHONY: install prepare train clean help run runall lint format security ci
+.PHONY: install prepare train clean help run runall lint format security ci api
 
 install:
 	python -m pip install -r requirements.txt
@@ -12,14 +12,17 @@ train:
 runall:
 	python main.py --runall
 
+api:
+	python -m uvicorn app:app --reload
+
 lint:
-	flake8 src/ main.py model_pipeline.py --max-line-length=120
+	python -m flake8 src/ main.py model_pipeline.py app.py --max-line-length=120
 
 format:
-	black src/ main.py model_pipeline.py --line-length=120
+	python -m black src/ main.py model_pipeline.py app.py --line-length=120
 
 security:
-	bandit -r src/ main.py model_pipeline.py
+	python -m bandit -r src/ main.py model_pipeline.py app.py
 
 ci: lint security
 	@echo "CI checks passed!"
@@ -34,6 +37,7 @@ help:
 	@echo "prepare - python main.py --prepare"
 	@echo "train - python main.py --train"
 	@echo "runall - python main.py --runall"
+	@echo "api - start FastAPI server (http://localhost:8000)"
 	@echo "lint - flake8 linting"
 	@echo "format - black code formatting"
 	@echo "security - bandit security scan"

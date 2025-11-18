@@ -1,7 +1,2 @@
 Model,TrainAccuracy,TestAccuracy,F1-score,ModelPath
-Decision Tree,0.9627690517742874,0.9511627906976744,0.9341692789968652,models\Decision_Tree.joblib
-Random Forest,1.0,0.9488372093023256,0.9290322580645162,models\Random_Forest.joblib
-AdaBoost,0.93717277486911,0.9395348837209302,0.9197530864197531,models\AdaBoost.joblib
-Logistic Regression,0.8458406050029087,0.8162790697674419,0.7443365695792881,models\Logistic_Regression.joblib
-Support Vector Machine,0.8493310063990692,0.8116279069767441,0.7412140575079872,models\Support_Vector_Machine.joblib
-K-Nearest Neighbors,0.8272251308900523,0.7534883720930232,0.6131386861313869,models\K-Nearest_Neighbors.joblib
+Decision Tree,0.9627690517742874,0.9511627906976744,0.9341692789968652,models/Decision_Tree.joblib
