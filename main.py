@@ -1,30 +1,59 @@
-from src.data import load_data, split_features_target
-from src.preprocess import clean_dataframe, scale_features
-from src.models import get_models_and_grids
-from src.train import train_and_evaluate
+import argparse
+import os
+from model_pipeline import train_all_models, prepare_data, load_model
+
+
+def build_parser():
+    p = argparse.ArgumentParser()
+    p.add_argument('--csv', type=str, default='alzheimers_disease_data.csv')
+    p.add_argument('--train', action='store_true')
+    p.add_argument('--prepare', action='store_true')
+    p.add_argument('--runall', action='store_true')
+    p.add_argument('--models-dir', type=str, default='models')
+    p.add_argument('--results-dir', type=str, default='results')
+    p.add_argument('--load-model', type=str)
+    return p
 
 
 def main():
-    csv_path = 'alzheimers_disease_data.csv'
+    p = build_parser()
+    args = p.parse_args()
 
-    # Load
-    df = load_data(csv_path)
+    if args.runall:
+        print('Running full pipeline...')
+        print('Step 1: Preparing data...')
+        X_train, X_test, y_train, y_test = prepare_data(args.csv)
+        print('X_train', getattr(X_train, 'shape', 'N/A'))
+        print('X_test', getattr(X_test, 'shape', 'N/A'))
+        print('y_train', getattr(y_train, 'shape', 'N/A'))
+        print('y_test', getattr(y_test, 'shape', 'N/A'))
+        print('Step 2: Training all models...')
+        results_df = train_all_models(csv_path=args.csv, results_dir=args.results_dir, models_dir=args.models_dir)
+        print('\nFinal Results:')
+        print(results_df)
+        print(f'\nAll files saved to models/ and results/')
+        return
 
-    # Clean + preprocess
-    df = clean_dataframe(df)
-    df = scale_features(df)
+    if args.prepare:
+        X_train, X_test, y_train, y_test = prepare_data(args.csv)
+        print('X_train', getattr(X_train, 'shape', 'N/A'))
+        print('X_test', getattr(X_test, 'shape', 'N/A'))
+        print('y_train', getattr(y_train, 'shape', 'N/A'))
+        print('y_test', getattr(y_test, 'shape', 'N/A'))
+        return
 
-    # Split
-    X, y = split_features_target(df, target_col='Diagnosis')
-    from sklearn.model_selection import train_test_split
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=40, shuffle=True)
+    if args.train:
+        print('Training...')
+        results_df = train_all_models(csv_path=args.csv, results_dir=args.results_dir, models_dir=args.models_dir)
+        print(results_df)
+        return
 
-    # Models
-    models, param_grids = get_models_and_grids()
+    if args.load_model:
+        m = load_model(args.load_model)
+        print('Loaded', m)
+        return
 
-    # Train & evaluate
-    results_df = train_and_evaluate(models, param_grids, X_train, y_train, X_test, y_test)
-    print(results_df)
+    p.print_help()
 
 
 if __name__ == '__main__':
