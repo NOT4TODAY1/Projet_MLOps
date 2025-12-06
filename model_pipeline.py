@@ -1,14 +1,18 @@
-from typing import Tuple, Any, Dict
+from typing import Tuple, Any, Dict, List
 import os
 import joblib
 import pandas as pd
 import shutil
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import GridSearchCV, train_test_split
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, classification_report
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score, confusion_matrix, classification_report, roc_curve, auc
 import mlflow
 import mlflow.sklearn
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 from src.data import load_data, split_features_target
 from src.preprocess import clean_dataframe, scale_features
@@ -63,8 +67,75 @@ def evaluate_model(model: Any, X_train, y_train, X_test, y_test) -> Dict[str, fl
         'true_positives': int(tp),
         'true_negatives': int(tn),
         'false_positives': int(fp),
-        'false_negatives': int(fn)
+        'false_negatives': int(fn),
+        'confusion_matrix': cm
     }
+
+
+def plot_confusion_matrix(cm: np.ndarray, model_name: str, save_path: str) -> None:
+    """Create and save confusion matrix plot"""
+    plt.figure(figsize=(8, 6))
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=True,
+                xticklabels=['Healthy', "Alzheimer's"],
+                yticklabels=['Healthy', "Alzheimer's"])
+    plt.title(f'Confusion Matrix - {model_name}', fontsize=14, fontweight='bold')
+    plt.ylabel('True Label', fontsize=12)
+    plt.xlabel('Predicted Label', fontsize=12)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def plot_roc_curve(model: Any, X_test, y_test, model_name: str, save_path: str) -> None:
+    """Create and save ROC curve plot"""
+    try:
+        if hasattr(model, 'predict_proba'):
+            y_proba = model.predict_proba(X_test)[:, 1]
+            fpr, tpr, _ = roc_curve(y_test, y_proba)
+            roc_auc = auc(fpr, tpr)
+            
+            plt.figure(figsize=(8, 6))
+            plt.plot(fpr, tpr, color='darkorange', lw=2, 
+                    label=f'ROC curve (AUC = {roc_auc:.2f})')
+            plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--', label='Random')
+            plt.xlim([0.0, 1.0])
+            plt.ylim([0.0, 1.05])
+            plt.xlabel('False Positive Rate', fontsize=12)
+            plt.ylabel('True Positive Rate', fontsize=12)
+            plt.title(f'ROC Curve - {model_name}', fontsize=14, fontweight='bold')
+            plt.legend(loc="lower right")
+            plt.grid(True, alpha=0.3)
+            plt.tight_layout()
+            plt.savefig(save_path, dpi=300, bbox_inches='tight')
+            plt.close()
+    except Exception as e:
+        print(f"Warning: Could not create ROC curve for {model_name}: {e}")
+
+
+def plot_metrics_comparison(results_df: pd.DataFrame, save_path: str) -> None:
+    """Create and save metrics comparison plot"""
+    metrics = ['TrainAccuracy', 'TestAccuracy', 'F1-score']
+    models = results_df['Model'].values
+    x = np.arange(len(models))
+    width = 0.25
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    
+    for i, metric in enumerate(metrics):
+        values = results_df[metric].values
+        offset = (i - 1) * width
+        ax.bar(x + offset, values, width, label=metric, alpha=0.8)
+    
+    ax.set_xlabel('Models', fontsize=12)
+    ax.set_ylabel('Score', fontsize=12)
+    ax.set_title('Model Performance Comparison', fontsize=14, fontweight='bold')
+    ax.set_xticks(x)
+    ax.set_xticklabels(models, rotation=45, ha='right')
+    ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
 def save_model(model: Any, path: str) -> None:
@@ -82,11 +153,28 @@ def save_results(results_df: pd.DataFrame, path: str = 'results/results.csv') ->
 
 
 def train_all_models(csv_path: str = 'alzheimers_disease_data.csv', results_dir: str = 'results', models_dir: str = 'models') -> pd.DataFrame:
+    """
+    Train all models with MLflow tracking.
+    
+    This function:
+    - Configures MLflow experiment
+    - Trains multiple models with GridSearchCV
+    - Logs parameters, metrics, and models to MLflow
+    - Returns results DataFrame
+    
+    Args:
+        csv_path: Path to the dataset CSV file
+        results_dir: Directory to save results CSV
+        models_dir: Directory to save model files
+        
+    Returns:
+        DataFrame with training results for all models
+    """
     # Configure MLflow experiment (avoid apostrophe in name for compatibility)
     mlflow.set_experiment("Alzheimers Disease Classification")
     
     # Enable autologging for sklearn (optional - logs additional info automatically)
-    # mlflow.sklearn.autolog()
+    # mlflow.sklearn.autolog()  # Uncomment to enable automatic logging
     
     X_train, X_test, y_train, y_test, scaler = prepare_data(csv_path)
     models, param_grids = get_models_and_grids()
@@ -171,6 +259,33 @@ def train_all_models(csv_path: str = 'alzheimers_disease_data.csv', results_dir:
                 mlflow.log_metric("false_positives", metrics['false_positives'])
                 mlflow.log_metric("false_negatives", metrics['false_negatives'])
                 
+                # Create and log plots (with error handling)
+                try:
+                    plots_dir = os.path.join(results_dir, "plots")
+                    os.makedirs(plots_dir, exist_ok=True)
+                    
+                    # Confusion Matrix Plot
+                    cm = metrics['confusion_matrix']
+                    cm_plot_path = os.path.join(plots_dir, f"{name.replace(' ', '_')}_confusion_matrix.png")
+                    try:
+                        plot_confusion_matrix(cm, name, cm_plot_path)
+                        if os.path.exists(cm_plot_path):
+                            mlflow.log_artifact(cm_plot_path, artifact_path="plots")
+                    except Exception as e:
+                        print(f"Warning: Could not create/save confusion matrix for {name}: {e}")
+                    
+                    # ROC Curve Plot
+                    roc_plot_path = os.path.join(plots_dir, f"{name.replace(' ', '_')}_roc_curve.png")
+                    try:
+                        plot_roc_curve(best_model, X_test, y_test, name, roc_plot_path)
+                        if os.path.exists(roc_plot_path):
+                            mlflow.log_artifact(roc_plot_path, artifact_path="plots")
+                    except Exception as e:
+                        print(f"Warning: Could not create/save ROC curve for {name}: {e}")
+                except Exception as e:
+                    print(f"Warning: Error creating plots for {name}: {e}")
+                    # Continue training even if plots fail
+                
                 # Log tags for easier filtering
                 mlflow.set_tag("model_type", name)
                 mlflow.set_tag("experiment_type", "alzheimer_classification")
@@ -183,8 +298,13 @@ def train_all_models(csv_path: str = 'alzheimers_disease_data.csv', results_dir:
                 # Log model artifact to MLflow
                 mlflow.log_artifact(model_path, artifact_path="models")
                 
-                # Also log using MLflow's sklearn autologging
-                mlflow.sklearn.log_model(best_model, f"sklearn_model_{name.replace(' ', '_')}")
+                # Also log using MLflow's sklearn logging (required for Atelier 5)
+                mlflow.sklearn.log_model(
+                    best_model, 
+                    f"sklearn_model_{name.replace(' ', '_')}",
+                    # Optional: Register model in Model Registry (requires MLflow server)
+                    # registered_model_name=f"Alzheimers_{name.replace(' ', '_')}"
+                )
 
                 results.append({'Model': name, 'TrainAccuracy': metrics['train_accuracy'], 'TestAccuracy': metrics['test_accuracy'], 'F1-score': metrics['test_f1'], 'ModelPath': model_path})
 
@@ -202,6 +322,23 @@ def train_all_models(csv_path: str = 'alzheimers_disease_data.csv', results_dir:
         results_df = pd.DataFrame(results).sort_values(by='F1-score', ascending=False)
         save_results(results_df, os.path.join(results_dir, 'results.csv'))
         mlflow.log_artifact(os.path.join(results_dir, 'results.csv'), artifact_path="results")
+        
+        # Create and log comparison plots (with error handling)
+        try:
+            plots_dir = os.path.join(results_dir, "plots")
+            os.makedirs(plots_dir, exist_ok=True)
+            
+            # Metrics Comparison Plot
+            comparison_plot_path = os.path.join(plots_dir, "metrics_comparison.png")
+            try:
+                plot_metrics_comparison(results_df, comparison_plot_path)
+                if os.path.exists(comparison_plot_path):
+                    mlflow.log_artifact(comparison_plot_path, artifact_path="plots")
+            except Exception as e:
+                print(f"Warning: Could not create/save metrics comparison plot: {e}")
+        except Exception as e:
+            print(f"Warning: Error creating comparison plots: {e}")
+            # Continue even if plots fail
 
     # Persist the best model and the fitted scaler for inference
     try:

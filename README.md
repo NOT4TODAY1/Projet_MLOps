@@ -22,13 +22,21 @@ This repository contains a modularized machine learning pipeline that reproduces
 
 ### Backend Setup
 
-1. Create a Python virtual environment and install dependencies:
-
+**Windows (PowerShell):**
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 ```
+
+**WSL (Linux):**
+```bash
+python3 -m venv venv_wsl
+source venv_wsl/bin/activate
+pip install -r requirements.txt
+```
+
+📖 **For WSL setup details, see [WSL_SETUP.md](WSL_SETUP.md)**
 
 2. Train all models (this runs GridSearchCV and may take several minutes):
 
@@ -84,35 +92,78 @@ Then open **http://localhost:3000** in your browser!
 
 📖 **For detailed instructions, see [HOW_TO_RUN.md](HOW_TO_RUN.md)**
 
-**MLflow Integration**
+**MLflow Integration (Atelier 5)**
 
 The project includes MLflow for experiment tracking. All training runs are automatically logged with:
-- Hyperparameters (from GridSearchCV)
-- Metrics (train/test accuracy, F1-score)
-- Model artifacts
-- Results CSV
+- **Parameters** (`mlflow.log_param()`): Dataset info, hyperparameters, best parameters from GridSearchCV
+- **Metrics** (`mlflow.log_metric()`): Train/test accuracy, F1-score, precision, recall, confusion matrix components
+- **Models** (`mlflow.sklearn.log_model()`): All trained models in MLflow format
+- **Artifacts**: Model files (.joblib), results CSV, and **visualization plots**
+  - Confusion matrix plots (per model)
+  - ROC curves (per model)
+  - Metrics comparison chart (all models)
 
 To view experiments in MLflow UI:
 
+**Windows (PowerShell):**
 ```powershell
-# Start MLflow UI (default storage)
-make mlflow
-# or
+# Direct command (make not available on Windows)
+.\venv\Scripts\Activate.ps1
 mlflow ui --host 127.0.0.1 --port 5000
 
-# Start MLflow UI with SQLite backend (recommended for persistence)
-make mlflow-sqlite
-# or
+# With SQLite backend
 mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
 ```
 
-**Note:** On Windows, use `--host 127.0.0.1` instead of `0.0.0.0` to avoid connection errors.
+**WSL/Linux:**
+```bash
+# With Makefile (recommended)
+source venv_wsl/bin/activate
+make mlflow
+
+# Or directly
+mlflow ui --host 0.0.0.0 --port 5000
+```
+
+**Note:** On Windows, use `--host 127.0.0.1`. On WSL, use `--host 0.0.0.0` to allow access from Windows.
 
 Then open http://localhost:5000 in your browser to view:
 - All training experiments
 - Model comparisons
 - Hyperparameter tuning results
 - Model artifacts
+- **Visualization plots** (in Artifacts → plots/)
+
+**MLflow Workflow:**
+
+1. **Train models** (automatically logs to MLflow):
+   ```bash
+   python main.py --train
+   ```
+
+2. **View results in MLflow UI**:
+   ```bash
+   make mlflow  # or mlflow ui --host 0.0.0.0 --port 5000
+   ```
+
+3. **Access plots**: Click on any run → Artifacts → plots/ to see:
+   - Confusion matrices
+   - ROC curves
+   - Metrics comparison
+
+**Troubleshooting:** If you see errors about corrupted runs (`TypeError: __init__() missing 1 required positional argument: 'run_uuid'`) or 500 Internal Server Error, clean the MLflow data:
+
+```bash
+# Option 1: Use Makefile (recommended)
+make clean-mlflow
+make train
+
+# Option 2: Manual cleanup
+rm -rf mlruns/
+python main.py --train
+```
+
+For detailed troubleshooting, see `troubleshoot_mlflow_500.md`.
 
 **Run the FastAPI prediction service**
 

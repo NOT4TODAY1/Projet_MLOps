@@ -37,6 +37,11 @@ clean:
 	@find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
 	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
+clean-mlflow:
+	@echo "Cleaning corrupted MLflow runs..."
+	$(PYTHON) fix_mlflow_runs.py --all || rm -rf mlruns/
+	@echo "MLflow runs cleaned. Run 'make train' to create fresh runs."
+
 help:
 	@echo "install - pip install -r requirements.txt"
 	@echo "prepare - python main.py --prepare"
@@ -45,19 +50,20 @@ help:
 	@echo "api - start FastAPI server (http://localhost:8000)"
 	@echo "mlflow - start MLflow UI (http://localhost:5000)"
 	@echo "mlflow-sqlite - start MLflow UI with SQLite backend (http://localhost:5000)"
+	@echo "clean-mlflow - clean corrupted MLflow runs"
 	@echo "lint - flake8 linting"
 	@echo "format - black code formatting"
 	@echo "security - bandit security scan"
 	@echo "ci - run lint + security checks"
-	@echo "clean - remove models, results, caches"
+	@echo "clean - remove models, results, caches, mlruns"
 
 run:
 	$(PYTHON) main.py
 
 mlflow:
 	@echo "Starting MLflow UI on http://localhost:5000"
-	mlflow ui --host 127.0.0.1 --port 5000
+	$(PYTHON) -m mlflow ui --host 0.0.0.0 --port 5000
 
 mlflow-sqlite:
 	@echo "Starting MLflow UI with SQLite backend on http://localhost:5000"
-	mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+	$(PYTHON) -m mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port 5000
