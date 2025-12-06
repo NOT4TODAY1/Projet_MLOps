@@ -12,13 +12,15 @@ This repository contains a modularized machine learning pipeline that reproduces
 - `model_pipeline.py` — modular pipeline functions: `prepare_data`, `train_model`, `evaluate_model`, `save_model`, `load_model`, `train_all_models`.
 - `app.py` — FastAPI application exposing `/predict`, `/retrain`, `/health`.
 - `api_client.py` — small test client for the API.
-- `Makefile` — convenience targets (install, prepare, train, runall, api, lint, format, security, ci, clean).
+- `Makefile` — convenience targets (install, prepare, train, runall, api, mlflow, mlflow-sqlite, lint, format, security, ci, clean).
 - `requirements.txt` — Python dependencies.
 - `models/` — trained model files (joblib) (generated at training time).
 - `results/` — results CSV created after training.
 - `src/` — small helper modules (`data.py`, `preprocess.py`, `models.py`).
 
 **Quick start (recommended)**
+
+### Backend Setup
 
 1. Create a Python virtual environment and install dependencies:
 
@@ -28,13 +30,7 @@ python -m venv .venv
 python -m pip install -r requirements.txt
 ```
 
-2. Prepare data (quick check):
-
-```powershell
-python main.py --prepare
-```
-
-3. Train all models (this runs GridSearchCV and may take several minutes):
+2. Train all models (this runs GridSearchCV and may take several minutes):
 
 ```powershell
 python main.py --train
@@ -43,6 +39,80 @@ python main.py --runall   # prepares and then trains
 ```
 
 Trained models are saved to the `models/` directory and results CSV is saved in `results/results.csv`.
+
+3. Start the backend API server:
+
+```powershell
+python -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
+```
+
+The API will be available at http://localhost:8000
+
+### Frontend Setup
+
+1. Navigate to frontend directory and install dependencies:
+
+```powershell
+cd frontend
+npm install
+```
+
+2. Start the development server:
+
+```powershell
+npm run dev
+```
+
+The frontend will be available at http://localhost:3000
+
+### Running Both Servers
+
+**Terminal 1 - Backend:**
+```powershell
+cd "C:\Users\Hazem\Desktop\4DS8\MLOps\Projet1.1\Projet_MLOps"
+.\venv\Scripts\Activate.ps1
+python -m uvicorn app:app --reload --host 127.0.0.1 --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```powershell
+cd "C:\Users\Hazem\Desktop\4DS8\MLOps\Projet1.1\Projet_MLOps\frontend"
+npm run dev
+```
+
+Then open **http://localhost:3000** in your browser!
+
+📖 **For detailed instructions, see [HOW_TO_RUN.md](HOW_TO_RUN.md)**
+
+**MLflow Integration**
+
+The project includes MLflow for experiment tracking. All training runs are automatically logged with:
+- Hyperparameters (from GridSearchCV)
+- Metrics (train/test accuracy, F1-score)
+- Model artifacts
+- Results CSV
+
+To view experiments in MLflow UI:
+
+```powershell
+# Start MLflow UI (default storage)
+make mlflow
+# or
+mlflow ui --host 127.0.0.1 --port 5000
+
+# Start MLflow UI with SQLite backend (recommended for persistence)
+make mlflow-sqlite
+# or
+mlflow ui --backend-store-uri sqlite:///mlflow.db --host 127.0.0.1 --port 5000
+```
+
+**Note:** On Windows, use `--host 127.0.0.1` instead of `0.0.0.0` to avoid connection errors.
+
+Then open http://localhost:5000 in your browser to view:
+- All training experiments
+- Model comparisons
+- Hyperparameter tuning results
+- Model artifacts
 
 **Run the FastAPI prediction service**
 
@@ -99,6 +169,8 @@ curl -X POST "http://localhost:8000/retrain"
 - `train` - run `main.py --train`.
 - `runall` - prepare + train.
 - `api` - run FastAPI server (uses `uvicorn app:app`).
+- `mlflow` - start MLflow UI on http://localhost:5000.
+- `mlflow-sqlite` - start MLflow UI with SQLite backend on http://localhost:5000.
 - `lint` - run `flake8`.
 - `format` - run `black`.
 - `security` - run `bandit`.

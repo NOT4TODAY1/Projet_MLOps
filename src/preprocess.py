@@ -20,11 +20,15 @@ def clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def scale_features(df: pd.DataFrame, columns: List[str] = SCALE_COLUMNS) -> pd.DataFrame:
-    """Fit StandardScaler on the selected columns and return transformed df."""
+    """Fit StandardScaler on the selected columns and return transformed df.
+
+    If `return_scaler` is True, return a tuple (df, scaler). This allows
+    the training pipeline to persist the fitted scaler for inference.
+    """
     df = df.copy()
     scaler = StandardScaler()
     # Only scale columns that are present
     cols = [c for c in columns if c in df.columns]
     if cols:
         df[cols] = scaler.fit_transform(df[cols])
-    return df
+    return df, scaler

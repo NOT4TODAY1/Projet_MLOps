@@ -22,7 +22,7 @@ def main():
     if args.runall:
         print('Running full pipeline...')
         print('Step 1: Preparing data...')
-        X_train, X_test, y_train, y_test = prepare_data(args.csv)
+        X_train, X_test, y_train, y_test, _scaler = prepare_data(args.csv)
         print('X_train', getattr(X_train, 'shape', 'N/A'))
         print('X_test', getattr(X_test, 'shape', 'N/A'))
         print('y_train', getattr(y_train, 'shape', 'N/A'))
@@ -35,7 +35,7 @@ def main():
         return
 
     if args.prepare:
-        X_train, X_test, y_train, y_test = prepare_data(args.csv)
+        X_train, X_test, y_train, y_test, _scaler = prepare_data(args.csv)
         print('X_train', getattr(X_train, 'shape', 'N/A'))
         print('X_test', getattr(X_test, 'shape', 'N/A'))
         print('y_train', getattr(y_train, 'shape', 'N/A'))

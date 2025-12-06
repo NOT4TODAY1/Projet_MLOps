@@ -12,3 +12,4 @@ bandit
 fastapi
 uvicorn
 pydantic
+mlflow
