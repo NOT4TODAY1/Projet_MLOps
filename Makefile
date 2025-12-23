@@ -1,7 +1,10 @@
-.PHONY: install prepare train clean help run runall lint format security ci api mlflow mlflow-sqlite
+.PHONY: install prepare train runall api lint format security ci clean mlflow elk stop help
 
-# Detect Python command (python3 for Linux/WSL, python for Windows)
-PYTHON := $(shell which python3 2>/dev/null || which python 2>/dev/null || echo python3)
+PYTHON=python3
+
+# -----------------------
+# Python tasks
+# -----------------------
 
 install:
 	$(PYTHON) -m pip install -r requirements.txt
@@ -10,7 +13,7 @@ prepare:
 	$(PYTHON) main.py --prepare
 
 train:
-	$(PYTHON) main.py --train	
+	$(PYTHON) train.py
 
 runall:
 	$(PYTHON) main.py --runall
@@ -31,39 +34,38 @@ ci: lint security
 	@echo "CI checks passed!"
 
 clean:
-	@if [ -d models ]; then rm -rf models; fi
-	@if [ -d results ]; then rm -rf results; fi
-	@if [ -d mlruns ]; then rm -rf mlruns; fi
-	@find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
-	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	rm -rf models results mlruns
+	find . -type d -name __pycache__ -exec rm -r {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-clean-mlflow:
-	@echo "Cleaning corrupted MLflow runs..."
-	$(PYTHON) fix_mlflow_runs.py --all || rm -rf mlruns/
-	@echo "MLflow runs cleaned. Run 'make train' to create fresh runs."
-
-help:
-	@echo "install - pip install -r requirements.txt"
-	@echo "prepare - python main.py --prepare"
-	@echo "train - python main.py --train"
-	@echo "runall - python main.py --runall"
-	@echo "api - start FastAPI server (http://localhost:8000)"
-	@echo "mlflow - start MLflow UI (http://localhost:5000)"
-	@echo "mlflow-sqlite - start MLflow UI with SQLite backend (http://localhost:5000)"
-	@echo "clean-mlflow - clean corrupted MLflow runs"
-	@echo "lint - flake8 linting"
-	@echo "format - black code formatting"
-	@echo "security - bandit security scan"
-	@echo "ci - run lint + security checks"
-	@echo "clean - remove models, results, caches, mlruns"
-
-run:
-	$(PYTHON) main.py
+# -----------------------
+# MLflow
+# -----------------------
 
 mlflow:
-	@echo "Starting MLflow UI on http://localhost:5000"
-	$(PYTHON) -m mlflow ui --host 0.0.0.0 --port 5000
+	mlflow server \
+	--backend-store-uri sqlite:///mlflow.db \
+	--default-artifact-root ./mlruns \
+	--host 0.0.0.0 \
+	--port 5000
 
-mlflow-sqlite:
-	@echo "Starting MLflow UI with SQLite backend on http://localhost:5000"
-	$(PYTHON) -m mlflow ui --backend-store-uri sqlite:///mlflow.db --host 0.0.0.0 --port 5000
+# -----------------------
+# ELK Stack (Docker Compose v2)
+# -----------------------
+
+elk:
+	docker compose up -d
+
+stop:
+	docker compose down
+
+# -----------------------
+# Help
+# -----------------------
+
+help:
+	@echo "make install        - Install dependencies"
+	@echo "make elk            - Start Elasticsearch + Kibana"
+	@echo "make mlflow         - Start MLflow server"
+	@echo "make train          - Train model + send logs to Elasticsearch"
+	@echo "make stop           - Stop ELK stack"

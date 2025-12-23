@@ -41,7 +41,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_PATH = "models/best_model.joblib"  # Use best model instead of hardcoded KNN
+MODEL_PATH = "models/Random_Forest.joblib"  # Use best model instead of hardcoded KNN
 SCALER_PATH = "models/scaler.joblib"
 model = None
 scaler = None
